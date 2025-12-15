@@ -1,0 +1,1061 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <style type="text/css">
+      a:link {
+        color: black;
+        text-decoration: none;
+      }
+      a:visited {
+        color: black;
+        text-decoration: none;
+      }
+      a:hover {
+        color: blue;
+        text-decoration: underline;
+      }
+
+      /* Small helpers to keep the page tidy */
+      .sample-card {
+        background: white;
+        border-radius: 18px;
+        padding: 18px 18px 8px 18px;
+        margin: 18px 0;
+        box-shadow: 0 2px 8px rgba(0, 0, 0, 0.06);
+      }
+      .sample-meta {
+        margin-bottom: 12px;
+      }
+      .sample-meta .k {
+        font-weight: 700;
+      }
+      .audio-label {
+        font-weight: 600;
+        margin: 0 0 6px 0;
+      }
+      audio {
+        width: 100%;
+      }
+      details {
+        background: rgba(255, 255, 255, 0.08);
+        border-radius: 14px;
+        padding: 10px 12px;
+        margin: 10px 0;
+      }
+      summary {
+        cursor: pointer;
+        font-weight: 700;
+      }
+      .note {
+        font-size: 0.95rem;
+        opacity: 0.95;
+      }
+
+      /* Force black text inside white cards (especially in bg-info text-white sections) */
+      .sample-card,
+      .sample-card * {
+        color: #111 !important;
+      }
+
+      /* optional: keep links readable */
+      .sample-card a,
+      .sample-card a:visited {
+        color: #111 !important;
+      }
+      .sample-card a:hover {
+        color: #1a55ff !important;
+      }
+
+      .synth-plot {
+        width: 95%;
+        max-width: 900px;
+        height: auto;
+        display: block;
+        margin: 0 auto 12px auto;
+        border-radius: 12px;
+      }
+
+      .ablation-note {
+        font-size: 0.8rem;
+        color: #444;
+        text-align: right;
+        margin-top: 10px;
+        line-height: 1.4;
+      }
+
+      .ref-citation {
+        color: #555;   /* 찐한 회색 */
+        font-weight: 500;
+      }
+
+      /* Header alignment + link buttons */
+      .masthead {
+        text-align: center;
+      }
+
+      .header-links {
+        margin-top: 12px;
+        display: flex;
+        justify-content: center;
+        gap: 10px;
+        flex-wrap: wrap;
+      }
+
+      .header-link-btn {
+        display: inline-flex;
+        align-items: center;
+        gap: 8px;
+        padding: 8px 14px;
+        border-radius: 999px;
+        border: 1px solid rgba(0,0,0,0.15);
+        background: #fff;
+        color: #111;
+        text-decoration: none;
+        font-weight: 600;
+      }
+
+      .header-link-btn:hover {
+        border-color: rgba(0,0,0,0.35);
+        text-decoration: none;
+      }
+
+    </style>
+
+    <meta
+      name="viewport"
+      content="width=device-width, initial-scale=1, shrink-to-fit=no"
+    />
+    <meta name="description" content="Affectron demo page" />
+    <meta name="author" content="" />
+    <title>Affectron Demo</title>
+
+    <!-- Font Awesome icons (free version)-->
+    <script
+      src="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/5.13.0/js/all.min.js"
+      crossorigin="anonymous"
+    ></script>
+    <!-- Core theme CSS (includes Bootstrap)-->
+    <link href="css/styles.css" rel="stylesheet" />
+    <!-- Fonts CSS-->
+    <link rel="stylesheet" href="css/heading.css" />
+    <link rel="stylesheet" href="css/body.css" />
+
+    <script>
+      // ---- Path helpers ----
+      function normalizeMediaPath(p) {
+        // 1) trim
+        // 2) remove accidental spaces before extension (e.g., "foo .wav" -> "foo.wav")
+        // 3) if no extension is present, assume .wav
+        if (!p) return "";
+        let s = ("" + p).trim();
+        s = s.replace(/\s+\.(wav|mp3|ogg|jpg|jpeg|png)$/i, ".$1");
+        const hasExt = /\.(wav|mp3|ogg|jpg|jpeg|png)$/i.test(s);
+        if (!hasExt) {
+          s = s + ".wav";
+        }
+        return s;
+      }
+
+      function audioPlayer(src) {
+        const p = normalizeMediaPath(src);
+        // encodeURI keeps slashes but encodes spaces etc.
+        return (
+          '<audio controls="controls" preload="none">' +
+          '<source src="' +
+          encodeURI(p) +
+          '" type="audio/wav" />' +
+          "</audio>"
+        );
+      }
+
+      function audioBlock(label, src, strong = false, extraHtml = "") {
+        let title = strong ? "<strong>" + label + "</strong>" : label;
+        return (
+          '<div class="col-md">' +
+          '<div class="audio-label">' +
+          title +
+          "</div>" +
+          (extraHtml ? '<div class="note mb-2">' + extraHtml + "</div>" : "") +
+          audioPlayer(src) +
+          "</div>"
+        );
+      }
+
+      function makeCard(metaHtml, rowsHtml) {
+        return (
+          '<div class="sample-card">' +
+          '<div class="sample-meta">' +
+          metaHtml +
+          "</div>" +
+          rowsHtml +
+          "</div>"
+        );
+      }
+
+      // ---- Preprocessing: verbal split ----
+      function createVerbalSplitCard(s) {
+        const meta =
+          '<div><span class="k">Emotion Label:</span> <i>' +
+          s.emotion +
+          "</i></div>" +
+          '<div class="mt-1"><span class="k">Original Text:</span> <i>' +
+          s.text +
+          "</i></div>";
+
+        let rows = '<div class="row">';
+        rows += audioBlock("Original Wav:", s.original, true);
+        rows += "</div>";
+
+        rows += '<div class="row mt-3">';
+        for (let i = 0; i < s.splits.length; i++) {
+          const sp = s.splits[i];
+          rows += audioBlock(
+            "Split Wav " + i + ":",
+            sp.path,
+            false,
+            sp.text ? ('<span class="k">Text:</span> <i>' + sp.text + "</i>") : ""
+          );
+        }
+        rows += "</div>";
+        return makeCard(meta, rows);
+      }
+
+      // ---- Preprocessing: nonverbal split ----
+      function createNonverbalSplitCard(s) {
+        const meta =
+          '<div><span class="k">NV Label:</span> <i>' +
+          s.label +
+          "</i></div>";
+
+        let rows = '<div class="row">';
+        rows += audioBlock("Original Wav:", s.original, true);
+        rows += "</div>";
+
+        // Grid: 3 per row
+        rows += '<div class="row mt-3">';
+        for (let i = 0; i < s.splits.length; i++) {
+          rows += audioBlock("Split Wav " + i + ":", s.splits[i]);
+          if ((i + 1) % 3 === 0 && i + 1 < s.splits.length) {
+            rows += "</div><div class=\"row mt-3\">";
+          }
+        }
+        rows += "</div>";
+        return makeCard(meta, rows);
+      }
+
+      // ---- Preprocessing: top-K matching ----
+      function createTopKMatchingCard(s) {
+        const meta =
+          '<div><span class="k">Emotion:</span> <i>' +
+          s.emotion +
+          "</i></div>" +
+          '<div class="mt-1"><span class="k">Text:</span> <i>' +
+          s.text +
+          "</i></div>";
+
+        let rows = '<div class="row">';
+        rows += audioBlock("Verbal Utterance:", s.query, true);
+        rows += "</div>";
+
+        rows += '<div class="row mt-3">';
+        for (let i = 0; i < s.matches.length; i++) {
+          const m = s.matches[i];
+          rows += audioBlock("Top-" + (i + 1), m.path, false, "<span class=\"k\">NV Label:</span> <i>" + m.label + "</i>");
+        }
+        rows += "</div>";
+
+        return makeCard(meta, rows);
+      }
+
+      // ---- Preprocessing: augmented reference ----
+      function createAugmentedRefCard(s) {
+        const meta =
+          '<div><span class="k">Emotion:</span> <i>' +
+          s.emotion +
+          "</i></div>" +
+          '<div class="mt-1"><span class="k">Text:</span> <i>' +
+          s.text +
+          "</i></div>";
+
+        const rows = '<div class="row">' + audioBlock("Augmented Reference", s.path, true) + "</div>";
+        return makeCard(meta, rows);
+      }
+
+      // ---- Main synthesis (seen/unseen) ----
+      function createSynthesisCard(s) {
+        // ✅ 여기서 jpg 경로 생성 (필요하면 경로만 바꿔)
+        const jpgPath = "./" + s.id + ".jpg";
+
+        // ✅ meta 맨 위에 이미지 추가
+        const meta =
+          '<div class="text-center">' +
+            '<img class="synth-plot" src="' + jpgPath + '" alt="' + s.id + ' plot" />' +
+          "</div>"
+
+
+        let rows = "";
+
+        // Row 1 (2 items)
+        rows += '<div class="row">';
+        rows += audioBlock("Augmented Reference", s.paths.aug_ref, true);
+        rows += audioBlock("Reference Input", s.paths.ref_in);
+        rows += "</div>";
+
+        // Row 2 (2 items)
+        rows += '<div class="row mt-3">';
+        rows += audioBlock("VoiceCraft [Peng et al., 2024]", s.paths.voicecraft);
+        rows += audioBlock("Affectron (Proposed)", s.paths.affectron, true);
+        rows += "</div>";
+
+        // Row 3 (3 items)
+        rows += '<div class="row mt-3">';
+        rows += '<div class="col-md-4">' +
+          '<div class="audio-label">Affectron -EDNM</div>' +
+          audioPlayer(s.paths.ablation_easm) +
+          "</div>";
+        rows += '<div class="col-md-4">' +
+          '<div class="audio-label">Affectron -EDNM-EAR</div>' +
+          audioPlayer(s.paths.ablation_easm_ear) +
+          "</div>";
+        rows += '<div class="col-md-4">' +
+          '<div class="audio-label">Affectron -EDNM-EAR-NSM</div>' +
+          audioPlayer(s.paths.ablation_easm_ear_edm) +
+          "</div>";
+        rows += "</div>";
+
+        rows +=
+          '<div class="ablation-note">' +
+            '<em>' +
+              '*EDNM: emotion-driven top-K NV matching<br>' +
+              '*EAR: emotion-aware top-K routing<br>' + 
+              '*NSM: NV structural masking<br>' + 
+              '*Augmented reference applies our NV augmentation to the ground truth<br>' + 
+              '<span class="ref-citation">' +
+                'P. Peng et al., "VoiceCraft: Zero-Shot Speech Editing and Text-to-Speech in the Wild." ' +
+                'In Proceedings of the 62nd Annual Meeting of the Association for Computational Linguistics, 2024.' +
+              '</span>' +
+            '</em>' +
+          '</div>';
+
+
+        return makeCard(meta, rows);
+      }
+
+      
+    // =========================
+    // ✅ AB Preference Test Card
+    // =========================
+    function createABTestCard(s) {
+      const plotPath =
+        s.plot || ("./wavs/ABtest/plots/" + s.wav.replace(/\.wav$/i, ".png"));
+
+      const meta =
+        '<div><span class="k">Emotion:</span> <i>' + s.emotion + "</i></div>" +
+        '<div class="mt-1"><span class="k">Text:</span> <i>' + s.text + "</i></div>";
+
+      // ✅ Bootstrap grid + 가운데정렬 + gutter
+      let rows = '<div class="row mt-3 justify-content-center gx-3 gy-3">';
+
+      s.models.forEach((m) => {
+        rows +=
+          // ✅ 4개(>=lg), 2개(>=md), 1개(<md)
+          '<div class="col-12 col-md-6 col-lg-3">' +
+            '<div class="audio-label text-center">' + m.name + "</div>" +
+            audioPlayer(m.path) +
+          "</div>";
+      });
+
+      rows += "</div>";
+
+      rows +=
+        '<div class="ablation-note">' +
+          '<em>' +
+            '[1] H. Wang et al., "CapSpeech: Enabling Downstream Applications in Style-Captioned Text-to-Speech," arXiv preprint arXiv:2506.02863, 2025.' +
+          '</em>' +
+        '</div>';
+
+      return makeCard(meta, rows);
+    }
+
+    </script>
+  </head>
+
+  <body id="page-top">
+    <!-- Navigation -->
+    <nav class="navbar navbar-expand-lg bg-secondary fixed-top" id="mainNav">
+      <div class="container">
+        <a class="navbar-brand js-scroll-trigger" href="#page-top">Affectron</a>
+        <button
+          class="navbar-toggler navbar-toggler-right font-weight-bold bg-primary text-white rounded"
+          type="button"
+          data-toggle="collapse"
+          data-target="#navbarResponsive"
+          aria-controls="navbarResponsive"
+          aria-expanded="false"
+          aria-label="Toggle navigation"
+        >
+          Menu <i class="fas fa-bars"></i>
+        </button>
+        <div class="collapse navbar-collapse" id="navbarResponsive">
+          <ul class="navbar-nav ml-auto">
+            <li class="nav-item mx-0 mx-lg-1">
+              <a
+                class="nav-link py-3 px-0 px-lg-3 rounded js-scroll-trigger"
+                href="#abstract"
+                >Abstract</a
+              >
+            </li>
+            <li class="nav-item mx-0 mx-lg-1">
+              <a
+                class="nav-link py-3 px-0 px-lg-3 rounded js-scroll-trigger"
+                href="#preprocessing"
+                >Data<br />Preprocessing</a
+              >
+            </li>
+            <li class="nav-item mx-0 mx-lg-1">
+              <a
+                class="nav-link py-3 px-0 px-lg-3 rounded js-scroll-trigger"
+                href="#AB_test"
+                >NV Augmentation<br />Comparison</a
+              >
+            </li>
+            <li class="nav-item mx-0 mx-lg-1">
+              <a
+                class="nav-link py-3 px-0 px-lg-3 rounded js-scroll-trigger"
+                href="#seen"
+                >Seen Speaker<br /> Synthesis</a
+              >
+            </li>
+            <li class="nav-item mx-0 mx-lg-1">
+              <a
+                class="nav-link py-3 px-0 px-lg-3 rounded js-scroll-trigger"
+                href="#unseen"
+                >Unseen Speaker<br />Synthesis</a
+              >
+            </li>
+          </ul>
+        </div>
+      </div>
+    </nav>
+
+    <!-- Header -->
+    <header class="masthead bg-white" id="page-top">
+      <div class="container d-flex align-items-center flex-column">
+        <h1 class="masthead-heading mb-0">
+          Affectron: Integrating Affectively Aligned Nonverbal Vocalizations into Emotional Speech Synthesis
+        </h1>
+
+        <p class="pre-wrap masthead-subheading font-weight-light mb-0 font-italic">
+          Anonymous Authors
+        </p>
+
+        <div class="text-center">
+          <br />
+          <img width="90%" src="./main.jpg" />
+          <br />
+          <em>Overall framework of Affectron.</em> 
+          <br />
+        </div>
+
+        <!-- ✅ GitHub / Source Code link buttons -->
+        <div class="header-links">
+          <a class="header-link-btn" href="https://github.com/YOUR_REPO" target="_blank" rel="noopener">
+            <i class="fab fa-github"></i>
+            <span>Source Code</span>
+          </a>
+        </div>
+      </div>
+    </header>
+
+
+    <!-- Abstraction -->
+    <section class="page-section portfolio" id="abstract">
+      <div class="container">
+        <!-- Portfolio Section Heading-->
+        <div class="text-center">
+          <h2 class="page-section-heading text-secondary mb-0 d-inline-block">
+            Abstract
+          </h2>
+        </div>
+        <!-- Icon Divider-->
+        <div class="divider-custom">
+          <div class="divider-custom"></div>
+        </div>
+        <!-- Portfolio Grid Items-->
+        <div class="row justify-content-center">
+          <div class="col-lg-12 ml-auto">
+            <p class="legend lead">
+              Nonverbal vocalizations (NVs), such as laughter and sighs, are central to affective signaling in emotional synthesis systems. However, NV data remain limited, and existing systems often rely on large proprietary datasets or NV detectors. Consequently, many emotional synthesis models fail to learn sufficient and properly labeled NVs, which ultimately degrades usability and immersion. To address these limitations, we propose Affectron as a framework for affective and contextually aligned NV generation. Unlike prior approaches that rely on large proprietary corpora or NV detectors, we intentionally build on a small-scale open decoupled NV corpus. To compensate for its limited coverage, we introduce an NV-augmented training process to expand the distributions of NV types and timings. Furthermore, built on a pre-trained speech backbone, we incorporate NV structural masking to achieve diverse and natural NV synthesis. In evaluations, Affectron produces more expressive and diverse NVs than the baseline system while preserving the naturalness of the verbal stream.
+            </p>
+            <br />
+            <br />
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- Part 1: Preprocessing -->
+    <section class="page-section bg-info text-white mb-0" id="preprocessing">
+      <div class="container">
+        <!-- About Section Heading-->
+        <div class="text-center">
+          <h2 class="page-section-heading d-inline-block text-white">
+            NV-augmented Data Preprocessing
+          </h2>
+        </div>
+        <div class="text-center" style="text-align: center">
+        </div>
+        <p class="lead note">
+          Explore how Affectron builds NV-augmented training data: 
+          Split Verbal/NV Recordings, Retrieve Top-3 Emotion-Aligned NV Candidates, and Create Final Augmented References.
+        </p>
+        <!-- Icon Divider-->
+        <div class="divider-custom divider-light">
+          <div class="divider-custom"></div>
+        </div>
+
+        <!-- 1) Splitting examples -->
+        <h3 class="mt-5 mb-3">
+          <span class="badge bg-light text-dark ms-2">1️⃣ Splitting Examples Preprocessing</span>
+        </h3>
+        <div id="preproc_split"></div>
+
+        <script>
+          // Verbal split
+          const verbalSplits = [
+            {
+              emotion: "Anger",
+              text:
+                "I'm so mad right now I could punch a hole in the wall. I can't believe he said that. He's such a jerk. There's a stop sign there and parents are just letting their kids run around.",
+              original: "./wavs/Preprocessing/Split/emo_anger_sentences.wav",
+              splits: [
+                {
+                  path: "./wavs/Preprocessing/Split/emo_anger_sentences_0.wav",
+                },
+                {
+                  path: "./wavs/Preprocessing/Split/emo_anger_sentences_1.wav",
+                },
+                {
+                  path: "./wavs/Preprocessing/Split/emo_anger_sentences_2.wav",
+                },
+              ],
+            },
+            {
+              emotion: "Disgust",
+              text:
+                "Okay, I've never seen anything grosser than this in my entire life. This is the worst dinner I've ever had. Yuck, I can't even look at that.",
+              original: "./wavs/Preprocessing/Split/emo_disgust_sentences.wav",
+              splits: [
+                {
+                  path: "./wavs/Preprocessing/Split/emo_disgust_sentences_0.wav",
+                },
+                {
+                  path: "./wavs/Preprocessing/Split/emo_disgust_sentences_1.wav",
+                },
+                {
+                  path: "./wavs/Preprocessing/Split/emo_disgust_sentences_2.wav",
+                },
+              ],
+            },
+          ];
+
+          // Nonverbal split
+          const nvSplits = [
+            {
+              label: "Cheering",
+              original: "./wavs/Preprocessing/Split/nonverbal_cheering.wav",
+              splits: Array.from({ length: 9 }, (_, i) =>
+                `./wavs/Preprocessing/Split/nonverbal_cheering_${i}.wav`
+              ),
+            },
+            {
+              label: "Laughter",
+              original: "./wavs/Preprocessing/Split/nonverbal_laughter_open.wav",
+              splits: [
+                "./wavs/Preprocessing/Split/nonverbal_laughter_open_0.wav",
+                "./wavs/Preprocessing/Split/nonverbal_laughter_open_1.wav",
+                "./wavs/Preprocessing/Split/nonverbal_laughter_open_2.wav",
+              ],
+            },
+            {
+              label: "Yelling",
+              original: "./wavs/Preprocessing/Split/nonverbal_yelling.wav",
+              splits: Array.from({ length: 6 }, (_, i) =>
+                `./wavs/Preprocessing/Split/nonverbal_yelling_${i}.wav`
+              ),
+            },
+          ];
+
+          const preprocSplitDiv = document.getElementById("preproc_split");
+
+          // Render verbal split cards
+          preprocSplitDiv.insertAdjacentHTML(
+            "beforeend",
+            '<details><summary>Verbal Utterance</summary><div id="verbal_split_cards" class="mt-3"></div></details>'
+          );
+          const verbalDiv = document.getElementById("verbal_split_cards");
+          verbalSplits.forEach((s, idx) => {
+            const html = createVerbalSplitCard(s);
+            verbalDiv.insertAdjacentHTML("beforeend", html);
+          });
+
+          // Render NV split cards
+          preprocSplitDiv.insertAdjacentHTML(
+            "beforeend",
+            '<details><summary>Nonverbal Event</summary><div id="nv_split_cards" class="mt-3"></div></details>'
+          );
+          const nvDiv = document.getElementById("nv_split_cards");
+          nvSplits.forEach((s) => {
+            const html = createNonverbalSplitCard(s);
+            nvDiv.insertAdjacentHTML("beforeend", html);
+          });
+        </script>
+
+        <!-- 2) Top-3 matching examples -->
+        <h3 class="mt-5 mb-3">
+          <span class="badge bg-light text-dark ms-2">2️⃣ Emotion-Driven Top-3 Matching</span>
+        </h3>
+        <div id="preproc_matching"></div>
+
+        <script>
+          const topK = [
+            {
+              emotion: "Anger",
+              text: "I can't believe he said that. He's such a jerk.",
+              query: "./wavs/Preprocessing/Matching/P015_emo_anger_sentences_1.wav",
+              matches: [
+                {
+                  path: "./wavs/Preprocessing/Matching/P015_interjection_anger_0.wav",
+                  label: "Anger",
+                },
+                {
+                  path: "./wavs/Preprocessing/Matching/P015_interjection_anger_2.wav",
+                  label: "Anger",
+                },
+                {
+                  path: "./wavs/Preprocessing/Matching/P015_interjection_filler_0.wav",
+                  label: "Filler",
+                },
+              ],
+            },
+            {
+              emotion: "Amazement",
+              text:
+                "Oh my, you make me so happy. I'm just so excited to be with you.",
+              query:
+                "./wavs/Preprocessing/Matching/p030_emo_amazement_freeform_0.wav",
+              matches: [
+                {
+                  path:
+                    "./wavs/Preprocessing/Matching/p030_interjection_greetings_4.wav",
+                  label: "Greetings",
+                },
+                {
+                  path:
+                    "./wavs/Preprocessing/Matching/p030_nonverbal_laughter_open_3.wav",
+                  label: "Laughter",
+                },
+                {
+                  path:
+                    "./wavs/Preprocessing/Matching/p030_nonverbal_laughter_open_4.wav",
+                  label: "Laughter",
+                },
+              ],
+            },
+            {
+              emotion: "Sadness",
+              text: "I hope it gets better soon.",
+              query: "./wavs/Preprocessing/Matching/P062_emo_sadness_sentences_1.wav",
+              matches: [
+                {
+                  path: "./wavs/Preprocessing/Matching/P062_interjection_anger_7.wav",
+                  label: "Anger",
+                },
+                {
+                  path:
+                    "./wavs/Preprocessing/Matching/P062_interjection_congratulations_0.wav",
+                  label: "Congratulations",
+                },
+                {
+                  path: "./wavs/Preprocessing/Matching/P062_interjection_filler_1.wav",
+                  label: "Filler",
+                },
+              ],
+            },
+            {
+              emotion: "Fear",
+              text: "I'm afraid someone or something is outside.",
+              query: "./wavs/Preprocessing/Matching/P070_emo_fear_sentences_1.wav",
+              matches: [
+                {
+                  path:
+                    "./wavs/Preprocessing/Matching/P070_interjection_congratulations_14.wav",
+                  label: "Congratulations",
+                },
+                {
+                  path: "./wavs/Preprocessing/Matching/P070_nonverbal_crying_4.wav",
+                  label: "Crying",
+                },
+                {
+                  path: "./wavs/Preprocessing/Matching/P070_nonverbal_yelling_6.wav",
+                  label: "Yelling",
+                },
+              ],
+            },
+            {
+              emotion: "Neutral",
+              text: "There is one more piece of bread in the pantry.",
+              query: "./wavs/Preprocessing/Matching/p076_emo_neutral_sentences_1.wav",
+              matches: [
+                {
+                  path: "./wavs/Preprocessing/Matching/p076_interjection_filler_1.wav",
+                  label: "Filler",
+                },
+                {
+                  path: "./wavs/Preprocessing/Matching/p076_nonverbal_crying_0.wav",
+                  label: "Crying",
+                },
+                {
+                  path: "./wavs/Preprocessing/Matching/p076_nonverbal_crying_5.wav",
+                  label: "Crying",
+                },
+              ],
+            },
+          ];
+
+          const matchingDiv = document.getElementById("preproc_matching");
+          topK.forEach((s) => {
+            matchingDiv.insertAdjacentHTML("beforeend", createTopKMatchingCard(s));
+          });
+        </script>
+
+        <!-- 3) Augmented reference examples -->
+        <h3 class="mt-5 mb-3">
+          <span class="badge bg-light text-dark ms-2">3️⃣ Final Augmented Reference Examples</span>
+        </h3>
+        <div id="preproc_augref"></div>
+
+        <script>
+          const augRefs = [
+            {
+              emotion: "Adoration",
+              text: "I just adore you. <em><strong>&lt throat &gt</strong></em> I love this gift.",
+              path:
+                "./wavs/Preprocessing/Final/adoration_2-3_with_vegetative_throat_3.wav",
+            },
+            {
+              emotion: "Confusion",
+              text:
+                "Huh? What is going on over here? <em><strong>&lt filler &gt</strong></em> What is this? Where are we going?",
+              path:
+                "./wavs/Preprocessing/Final/confusion_0-1_with_interjection_filler_1.wav",
+            },
+            {
+              emotion: "Fear",
+              text:
+                "Did you hear that sound? I'm afraid someone or something is outside. <em><strong>&lt congratulations &gt</strong></em> Oh my gosh! What is that? What do you think is going to happen if we don't run?",
+              path:
+                "./wavs/Preprocessing/Final/fear_0-1_with_interjection_congratulations_0.wav",
+            },
+            {
+              emotion: "Sadness",
+              text:
+                "I am so upset by the state of the world. I hope it gets better soon. <em><strong>&lt throat &gt</strong></em> I really miss her. Life isn't the same without her.",
+              path:
+                "./wavs/Preprocessing/Final/sadness_0-1_with_vegetative_throat_4.wav",
+            },
+          ];
+
+          const augDiv = document.getElementById("preproc_augref");
+          augRefs.forEach((s) => {
+            augDiv.insertAdjacentHTML("beforeend", createAugmentedRefCard(s));
+          });
+        </script>
+      </div>
+    </section>
+
+    <!-- ✅ AB Preference Test -->
+    <section class="page-section bg-primary text-white mb-0" id="AB_test">
+      <div class="container">
+        <div class="text-center">
+          <h2 class="page-section-heading d-inline-block text-white">
+            NV Augmentation Comparison
+          </h2>
+        </div>
+        <p class="lead note">
+          Each sample provides four side-by-side audio examples generated with different NV augmentation strategies,
+          enabling direct preference comparison on the same ground-truth utterance.
+        </p>
+        <div class="divider-custom divider-light"><div class="divider-custom"></div></div>
+
+        <div id="abtest_cards"></div>
+
+        <script>
+          const AB_MODELS = [
+            { name: "Affectron (Proposed)", dir: "./wavs/ABtest/Affectron" },
+            { name: "Random Type [1]", dir: "./wavs/ABtest/Random_type" },
+            { name: "Random Position [1]", dir: "./wavs/ABtest/Random_position" },
+            { name: "Random Position & Type [1]", dir: "./wavs/ABtest/Random_position_type" },
+          ];
+
+          const AB_SAMPLES = [
+            {
+              wav: "p001_emo_anger_sentences_1.wav",
+              emotion: "Anger",
+              text: "I can't believe he said that. He's such a jerk.",
+            },
+            {
+              wav: "p005_emo_adoration_sentences_1.wav",
+              emotion: "Adoration",
+              text: "I had the best time with you.",
+            },
+            {
+              wav: "p005_emo_relief_sentences_1.wav",
+              emotion: "Relief",
+              text: "That was so stressful.",
+            },
+          ];
+
+          const abDiv = document.getElementById("abtest_cards");
+
+          AB_SAMPLES.forEach((s) => {
+            const cardObj = {
+              wav: s.wav,
+              emotion: s.emotion,
+              text: s.text,
+              // plot: "./wavs/ABtest/plots/" + s.wav.replace(/\.wav$/i, ".png"), // 기본값이라 생략 가능
+              models: AB_MODELS.map((m) => ({
+                name: m.name,
+                path: m.dir + "/" + s.wav,
+              })),
+            };
+            abDiv.insertAdjacentHTML("beforeend", createABTestCard(cardObj));
+          });
+        </script>
+      </div>
+    </section>
+
+    <!-- Part 2: Seen speaker -->
+    <section class="page-section bg-info text-white mb-0" id="seen">
+      <div class="container">
+        <div class="text-center">
+          <h2 class="page-section-heading d-inline-block text-white">
+            Seen Speaker Synthesis
+          </h2>
+        </div>
+        <div class="divider-custom divider-light"><div class="divider-custom"></div></div>
+
+        <div id="seen_cards"></div>
+
+        <script>
+          const seenSamples = [
+            {
+              id: "p016_emo_realization_sentences_1",
+              note: "(No plot image shown in this section)",
+              paths: {
+                aug_ref:
+                  "./wavs/main/Augmented_Reference/p016_emo_realization_sentences_1.wav",
+                ref_in:
+                  "./wavs/main/Reference_Input/p016_emo_realization_sentences_1.wav",
+                voicecraft:
+                  "./wavs/main/VoiceCraft/p016_emo_realization_sentences_1.wav",
+                affectron:
+                  "./wavs/main/Affectron/p016_emo_realization_sentences_1.wav",
+                ablation_easm:
+                  "./wavs/main/Affectron_ablation_EASM/p016_emo_realization_sentences_1.wav",
+                ablation_easm_ear:
+                  "./wavs/main/Affectron_ablation_EASM_EAR/p016_emo_realization_sentences_1.wav",
+                ablation_easm_ear_edm:
+                  "./wavs/main/Affectron_ablation_EASM_EAR_EDM/p016_emo_realization_sentences_1.wav",
+              },
+            },
+            {
+              // User-provided filenames had an extra space before extension; we normalize that in normalizeMediaPath().
+              id: "p018_emo_pain_sentences_1",
+              note: "(Filename sometimes appears with an extra space before .wav/.jpg)",
+              paths: {
+                aug_ref:
+                  "./wavs/main/Augmented_Reference/p018_emo_pain_sentences_1.wav",
+                ref_in:
+                  "./wavs/main/Reference_Input/p018_emo_pain_sentences_1.wav",
+                voicecraft:
+                  "./wavs/main/VoiceCraft/p018_emo_pain_sentences_1.wav",
+                affectron:
+                  "./wavs/main/Affectron/p018_emo_pain_sentences_1.wav",
+                ablation_easm:
+                  "./wavs/main/Affectron_ablation_EASM/p018_emo_pain_sentences_1.wav",
+                ablation_easm_ear:
+                  "./wavs/main/Affectron_ablation_EASM_EAR/p018_emo_pain_sentences_1.wav",
+                ablation_easm_ear_edm:
+                  "./wavs/main/Affectron_ablation_EASM_EAR_EDM/p018_emo_pain_sentences_1.wav",
+              },
+            },
+            {
+              id: "p022_emo_distress_sentences_1",
+              note: "(No plot image shown in this section)",
+              paths: {
+                aug_ref:
+                  "./wavs/main/Augmented_Reference/p022_emo_distress_sentences_1.wav",
+                ref_in:
+                  "./wavs/main/Reference_Input/p022_emo_distress_sentences_1.wav",
+                voicecraft:
+                  "./wavs/main/VoiceCraft/p022_emo_distress_sentences_1.wav",
+                affectron:
+                  "./wavs/main/Affectron/p022_emo_distress_sentences_1.wav",
+                ablation_easm:
+                  "./wavs/main/Affectron_ablation_EASM/p022_emo_distress_sentences_1.wav",
+                ablation_easm_ear:
+                  "./wavs/main/Affectron_ablation_EASM_EAR/p022_emo_distress_sentences_1.wav",
+                ablation_easm_ear_edm:
+                  "./wavs/main/Affectron_ablation_EASM_EAR_EDM/p022_emo_distress_sentences_1.wav",
+              },
+            },
+            {
+              id: "p023_emo_cuteness_sentences_1",
+              note: "(No plot image shown in this section)",
+              paths: {
+                aug_ref:
+                  "./wavs/main/Augmented_Reference/p023_emo_cuteness_sentences_1.wav",
+                ref_in:
+                  "./wavs/main/Reference_Input/p023_emo_cuteness_sentences_1.wav",
+                voicecraft:
+                  "./wavs/main/VoiceCraft/p023_emo_cuteness_sentences_1.wav",
+                affectron:
+                  "./wavs/main/Affectron/p023_emo_cuteness_sentences_1.wav",
+                ablation_easm:
+                  "./wavs/main/Affectron_ablation_EASM/p023_emo_cuteness_sentences_1.wav",
+                ablation_easm_ear:
+                  "./wavs/main/Affectron_ablation_EASM_EAR/p023_emo_cuteness_sentences_1.wav",
+                ablation_easm_ear_edm:
+                  "./wavs/main/Affectron_ablation_EASM_EAR_EDM/p023_emo_cuteness_sentences_1.wav",
+              },
+            },
+          ];
+
+          const seenDiv = document.getElementById("seen_cards");
+          seenSamples.forEach((s) => {
+            seenDiv.insertAdjacentHTML("beforeend", createSynthesisCard(s));
+          });
+        </script>
+      </div>
+    </section>
+
+    <!-- Part 3: Unseen speaker -->
+    <section class="page-section bg-primary text-white mb-0" id="unseen">
+      <div class="container">
+        <div class="text-center">
+          <h2 class="page-section-heading d-inline-block text-white">
+            Part 3. Unseen Speaker Synthesis
+          </h2>
+        </div>
+        <div class="divider-custom divider-light"><div class="divider-custom"></div></div>
+
+        <div id="unseen_cards"></div>
+
+        <script>
+          const unseenSamples = [
+            {
+              id: "p001_emo_anger_freeform_1",
+              note: "(No plot image shown in this section)",
+              paths: {
+                aug_ref:
+                  "./wavs/main/Augmented_Reference/p001_emo_anger_freeform_1.wav",
+                ref_in:
+                  "./wavs/main/Reference_Input/p001_emo_anger_freeform_1.wav",
+                voicecraft:
+                  "./wavs/main/VoiceCraft/p001_emo_anger_freeform_1.wav",
+                affectron:
+                  "./wavs/main/Affectron/p001_emo_anger_freeform_1.wav",
+                ablation_easm:
+                  "./wavs/main/Affectron_ablation_EASM/p001_emo_anger_freeform_1.wav",
+                ablation_easm_ear:
+                  "./wavs/main/Affectron_ablation_EASM_EAR/p001_emo_anger_freeform_1.wav",
+                ablation_easm_ear_edm:
+                  "./wavs/main/Affectron_ablation_EASM_EAR_EDM/p001_emo_anger_freeform_1.wav",
+              },
+            },
+            {
+              id: "p001_emo_contentment_sentences_1",
+              note: "(No plot image shown in this section)",
+              paths: {
+                aug_ref:
+                  "./wavs/main/Augmented_Reference/p001_emo_contentment_sentences_1.wav",
+                ref_in:
+                  "./wavs/main/Reference_Input/p001_emo_contentment_sentences_1.wav",
+                voicecraft:
+                  "./wavs/main/VoiceCraft/p001_emo_contentment_sentences_1.wav",
+                affectron:
+                  "./wavs/main/Affectron/p001_emo_contentment_sentences_1.wav",
+                ablation_easm:
+                  "./wavs/main/Affectron_ablation_EASM/p001_emo_contentment_sentences_1.wav",
+                ablation_easm_ear:
+                  "./wavs/main/Affectron_ablation_EASM_EAR/p001_emo_contentment_sentences_1.wav",
+                ablation_easm_ear_edm:
+                  "./wavs/main/Affectron_ablation_EASM_EAR_EDM/p001_emo_contentment_sentences_1.wav",
+              },
+            },
+            {
+              id: "p002_emo_amazement_freeform_1",
+              note: "(No plot image shown in this section)",
+              paths: {
+                aug_ref:
+                  "./wavs/main/Augmented_Reference/p002_emo_amazement_freeform_1.wav",
+                ref_in:
+                  "./wavs/main/Reference_Input/p002_emo_amazement_freeform_1.wav",
+                voicecraft:
+                  "./wavs/main/VoiceCraft/p002_emo_amazement_freeform_1.wav",
+                affectron:
+                  "./wavs/main/Affectron/p002_emo_amazement_freeform_1.wav",
+                ablation_easm:
+                  "./wavs/main/Affectron_ablation_EASM/p002_emo_amazement_freeform_1.wav",
+                ablation_easm_ear:
+                  "./wavs/main/Affectron_ablation_EASM_EAR/p002_emo_amazement_freeform_1.wav",
+                ablation_easm_ear_edm:
+                  "./wavs/main/Affectron_ablation_EASM_EAR_EDM/p002_emo_amazement_freeform_1.wav",
+              },
+            },
+            {
+              id: "p002_emo_cuteness_sentences_0",
+              note: "(No plot image shown in this section)",
+              paths: {
+                aug_ref:
+                  "./wavs/main/Augmented_Reference/p002_emo_cuteness_sentences_0.wav",
+                ref_in:
+                  "./wavs/main/Reference_Input/p002_emo_cuteness_sentences_0.wav",
+                voicecraft:
+                  "./wavs/main/VoiceCraft/p002_emo_cuteness_sentences_0.wav",
+                affectron:
+                  "./wavs/main/Affectron/p002_emo_cuteness_sentences_0.wav",
+                ablation_easm:
+                  "./wavs/main/Affectron_ablation_EASM/p002_emo_cuteness_sentences_0.wav",
+                ablation_easm_ear:
+                  "./wavs/main/Affectron_ablation_EASM_EAR/p002_emo_cuteness_sentences_0.wav",
+                ablation_easm_ear_edm:
+                  "./wavs/main/Affectron_ablation_EASM_EAR_EDM/p002_emo_cuteness_sentences_0.wav",
+              },
+            },
+          ];
+
+          const unseenDiv = document.getElementById("unseen_cards");
+          unseenSamples.forEach((s) => {
+            unseenDiv.insertAdjacentHTML("beforeend", createSynthesisCard(s));
+          });
+        </script>
+      </div>
+    </section>
+
+    <div class="scroll-to-top d-lg-none position-fixed">
+      <a class="js-scroll-trigger d-block text-center text-white rounded" href="#page-top"
+        ><i class="fa fa-chevron-up"></i
+      ></a>
+    </div>
+
+    <!-- Bootstrap core JS-->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/jquery/3.4.1/jquery.min.js"></script>
+    <script src="https://stackpath.bootstrapcdn.com/bootstrap/4.4.1/js/bootstrap.bundle.min.js"></script>
+    <!-- Third party plugin JS-->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/jquery-easing/1.4.1/jquery.easing.min.js"></script>
+    <script src="js/scripts.js"></script>
+  </body>
+</html>
