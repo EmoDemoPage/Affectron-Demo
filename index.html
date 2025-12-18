@@ -119,6 +119,34 @@
         border-color: rgba(0,0,0,0.35);
         text-decoration: none;
       }
+      .top-meta {
+        background: #f3f4f6; /* 연한 회색 */
+        border-radius: 14px;
+        padding: 12px 14px;
+        margin-bottom: 14px;
+        display: grid;
+        grid-template-columns: 1fr 320px; /* 오른쪽 ref input */
+        gap: 14px;
+        align-items: start;
+      }
+
+      @media (max-width: 768px) {
+        .top-meta {
+          grid-template-columns: 1fr;
+        }
+      }
+
+      .meta-k {
+        font-weight: 700;
+      }
+
+      .fig-img {
+        width: 100%;
+        height: auto;
+        border-radius: 12px;
+        display: block;
+        margin: 8px 0 6px 0;
+      }
 
     </style>
 
@@ -192,6 +220,72 @@
           "</div>"
         );
       }
+
+      function imgBlock(src) {
+        const p = normalizeMediaPath(src); // png도 normalize가 ext 없으면 wav 붙일 수 있어서 아래에서 따로 처리
+        // 위 normalizeMediaPath는 wav/mp3/png를 지원하지만, ext 없으면 .wav를 붙임.
+        // fig_paths는 항상 .png가 있으니 그대로 써도 안전.
+        return '<img class="fig-img" src="' + encodeURI(src) + '" alt="figure" />';
+      }
+
+      function modelCell(title, figSrc, wavSrc) {
+        return (
+          '<div class="col-12 col-md-4">' +
+            '<div class="audio-label text-center">' + title + '</div>' +
+            (figSrc ? imgBlock(figSrc) : "") +
+            (wavSrc ? audioPlayer(wavSrc) : "") +
+          "</div>"
+        );
+      }
+
+      function createSynthesisCardV2(s) {
+        // 상단 회색 meta + 오른쪽 Reference Input
+        const meta =
+          '<div class="top-meta">' +
+            '<div>' +
+              '<div><span class="meta-k">Input Text:</span> <i>' + s.input_text + '</i></div>' +
+              '<div class="mt-1"><span class="meta-k">Speaker:</span> <i>' + s.speaker + '</i></div>' +
+              '<div class="mt-1"><span class="meta-k">Emotion:</span> <i>' + s.emotion + '</i></div>' +
+            "</div>" +
+            '<div>' +
+              '<div class="audio-label text-center">Reference Input</div>' +
+              audioPlayer(s.wav_paths.ref_in) +
+            "</div>" +
+          "</div>";
+
+        let rows = "";
+
+        // Row 1: (a)(b)(c)
+        rows += '<div class="row mt-2 gx-3 gy-3">';
+        rows += modelCell("(a) Augmented GT", s.fig_paths.aug_ref, s.wav_paths.aug_ref);
+        rows += modelCell("(b) VoiceCraft [Peng et al., 2024]", s.fig_paths.voicecraft, s.wav_paths.voicecraft);
+        rows += modelCell("(c) Affectron (Proposed)", s.fig_paths.affectron, s.wav_paths.affectron);
+        rows += "</div>";
+
+        // Row 2: (d)(e)(f)
+        rows += '<div class="row mt-3 gx-3 gy-3">';
+        rows += modelCell("(d) -EDNM", s.fig_paths.ablation_easm, s.wav_paths.ablation_easm);
+        rows += modelCell("(e) -EDNM-EAR", s.fig_paths.ablation_easm_ear, s.wav_paths.ablation_easm_ear);
+        rows += modelCell("(f) -EDNM-EAR-NSM", s.fig_paths.ablation_easm_ear_edm, s.wav_paths.ablation_easm_ear_edm);
+        rows += "</div>";
+
+        // 기존 citation/설명도 유지하고 싶으면 여기 붙이면 됨 (선택)
+        rows +=
+          '<div class="ablation-note">' +
+            '<em>' +
+              '*EDNM: emotion-driven top-K NV matching<br>' +
+              '*EAR: emotion-aware top-K routing<br>' +
+              '*NSM: NV structural masking<br>' +
+              '<span class="ref-citation">' +
+                'P. Peng et al., "VoiceCraft: Zero-Shot Speech Editing and Text-to-Speech in the Wild." ' +
+                'In Proceedings of the 62nd Annual Meeting of the Association for Computational Linguistics, 2024.' +
+              '</span>' +
+            '</em>' +
+          '</div>';
+
+        return makeCard(meta, rows);
+      }
+
 
       // ---- Preprocessing: verbal split ----
       function createVerbalSplitCard(s) {
@@ -851,91 +945,102 @@
         <script>
           const seenSamples = [
             {
-              id: "p016_emo_realization_sentences_1",
-              note: "(No plot image shown in this section)",
-              paths: {
-                aug_ref:
-                  "./wavs/main/Augmented_Reference/p016_emo_realization_sentences_1.wav",
-                ref_in:
-                  "./wavs/main/Reference_Input/p016_emo_realization_sentences_1.wav",
-                voicecraft:
-                  "./wavs/main/VoiceCraft/p016_emo_realization_sentences_1.wav",
-                affectron:
-                  "./wavs/main/Affectron/p016_emo_realization_sentences_1.wav",
-                ablation_easm:
-                  "./wavs/main/Affectron_ablation_EASM/p016_emo_realization_sentences_1.wav",
-                ablation_easm_ear:
-                  "./wavs/main/Affectron_ablation_EASM_EAR/p016_emo_realization_sentences_1.wav",
-                ablation_easm_ear_edm:
-                  "./wavs/main/Affectron_ablation_EASM_EAR_EDM/p016_emo_realization_sentences_1.wav",
+              input_text:
+                "Did you know that a flamingo is actually white but turns pink because it <em><strong>&lt filler &gt</strong></em> eats so much shrimp?",
+              speaker: "p016 (Male Speaker)",
+              emotion: "Realization",
+              wav_paths: {
+                aug_ref: "./wavs/main/Augmented_Reference/p016_emo_realization_sentences_1.wav",
+                ref_in: "./wavs/main/Reference_Input/p016_emo_realization_sentences_1.wav",
+                voicecraft: "./wavs/main/VoiceCraft/p016_emo_realization_sentences_1.wav",
+                affectron: "./wavs/main/Affectron/p016_emo_realization_sentences_1.wav",
+                ablation_easm: "./wavs/main/Affectron_ablation_EASM/p016_emo_realization_sentences_1.wav",
+                ablation_easm_ear: "./wavs/main/Affectron_ablation_EASM_EAR/p016_emo_realization_sentences_1.wav",
+                ablation_easm_ear_edm: "./wavs/main/Affectron_ablation_EASM_EAR_EDM/p016_emo_realization_sentences_1.wav",
+              },
+              fig_paths: {
+                aug_ref: "./Figs/0.GT/p016_emo_realization_sentences_1.png",
+                voicecraft: "./Figs/1.VoiceCraft/p016_emo_realization_sentences_1.png",
+                affectron: "./Figs/2.Affectron/p016_emo_realization_sentences_1.png",
+                ablation_easm: "./Figs/3.EDNM/p016_emo_realization_sentences_1.png",
+                ablation_easm_ear: "./Figs/4.EDNM_EAR/p016_emo_realization_sentences_1.png",
+                ablation_easm_ear_edm: "./Figs/5.EDNM_EAR_NSM/p016_emo_realization_sentences_1.png",
               },
             },
             {
-              // User-provided filenames had an extra space before extension; we normalize that in normalizeMediaPath().
-              id: "p018_emo_pain_sentences_1",
-              note: "(Filename sometimes appears with an extra space before .wav/.jpg)",
-              paths: {
-                aug_ref:
-                  "./wavs/main/Augmented_Reference/p018_emo_pain_sentences_1.wav",
-                ref_in:
-                  "./wavs/main/Reference_Input/p018_emo_pain_sentences_1.wav",
-                voicecraft:
-                  "./wavs/main/VoiceCraft/p018_emo_pain_sentences_1.wav",
-                affectron:
-                  "./wavs/main/Affectron/p018_emo_pain_sentences_1.wav",
-                ablation_easm:
-                  "./wavs/main/Affectron_ablation_EASM/p018_emo_pain_sentences_1.wav",
-                ablation_easm_ear:
-                  "./wavs/main/Affectron_ablation_EASM_EAR/p018_emo_pain_sentences_1.wav",
-                ablation_easm_ear_edm:
-                  "./wavs/main/Affectron_ablation_EASM_EAR_EDM/p018_emo_pain_sentences_1.wav",
+              input_text:
+                "My foot hurts so badly right now. <em><strong>&lt filler &gt</strong></em>",
+              speaker: "p018 (Female Speaker)",
+              emotion: "Pain",
+              wav_paths: {
+                aug_ref: "./wavs/main/Augmented_Reference/p018_emo_pain_sentences_1.wav",
+                ref_in: "./wavs/main/Reference_Input/p018_emo_pain_sentences_1.wav",
+                voicecraft: "./wavs/main/VoiceCraft/p018_emo_pain_sentences_1.wav",
+                affectron: "./wavs/main/Affectron/p018_emo_pain_sentences_1.wav",
+                ablation_easm: "./wavs/main/Affectron_ablation_EASM/p018_emo_pain_sentences_1.wav",
+                ablation_easm_ear: "./wavs/main/Affectron_ablation_EASM_EAR/p018_emo_pain_sentences_1.wav",
+                ablation_easm_ear_edm: "./wavs/main/Affectron_ablation_EASM_EAR_EDM/p018_emo_pain_sentences_1.wav",
+              },
+              fig_paths: {
+                aug_ref: "./Figs/0.GT/p018_emo_pain_sentences_1.png",
+                voicecraft: "./Figs/1.VoiceCraft/p018_emo_pain_sentences_1.png",
+                affectron: "./Figs/2.Affectron/p018_emo_pain_sentences_1.png",
+                ablation_easm: "./Figs/3.EDNM/p018_emo_pain_sentences_1.png",
+                ablation_easm_ear: "./Figs/4.EDNM_EAR/p018_emo_pain_sentences_1.png",
+                ablation_easm_ear_edm: "./Figs/5.EDNM_EAR_NSM/p018_emo_pain_sentences_1.png",
               },
             },
             {
-              id: "p022_emo_distress_sentences_1",
-              note: "(No plot image shown in this section)",
-              paths: {
-                aug_ref:
-                  "./wavs/main/Augmented_Reference/p022_emo_distress_sentences_1.wav",
-                ref_in:
-                  "./wavs/main/Reference_Input/p022_emo_distress_sentences_1.wav",
-                voicecraft:
-                  "./wavs/main/VoiceCraft/p022_emo_distress_sentences_1.wav",
-                affectron:
-                  "./wavs/main/Affectron/p022_emo_distress_sentences_1.wav",
-                ablation_easm:
-                  "./wavs/main/Affectron_ablation_EASM/p022_emo_distress_sentences_1.wav",
-                ablation_easm_ear:
-                  "./wavs/main/Affectron_ablation_EASM_EAR/p022_emo_distress_sentences_1.wav",
-                ablation_easm_ear_edm:
-                  "./wavs/main/Affectron_ablation_EASM_EAR_EDM/p022_emo_distress_sentences_1.wav",
+              input_text:
+                "This is all too stressful to handle right now. <em><strong>&lt filler &gt</strong></em>",
+              speaker: "p022 (Male Speaker)",
+              emotion: "Distress",
+              wav_paths: {
+                aug_ref: "./wavs/main/Augmented_Reference/p022_emo_distress_sentences_1.wav",
+                ref_in: "./wavs/main/Reference_Input/p022_emo_distress_sentences_1.wav",
+                voicecraft: "./wavs/main/VoiceCraft/p022_emo_distress_sentences_1.wav",
+                affectron: "./wavs/main/Affectron/p022_emo_distress_sentences_1.wav",
+                ablation_easm: "./wavs/main/Affectron_ablation_EASM/p022_emo_distress_sentences_1.wav",
+                ablation_easm_ear: "./wavs/main/Affectron_ablation_EASM_EAR/p022_emo_distress_sentences_1.wav",
+                ablation_easm_ear_edm: "./wavs/main/Affectron_ablation_EASM_EAR_EDM/p022_emo_distress_sentences_1.wav",
+              },
+              fig_paths: {
+                aug_ref: "./Figs/0.GT/p022_emo_distress_sentences_1.png",
+                voicecraft: "./Figs/1.VoiceCraft/p022_emo_distress_sentences_1.png",
+                affectron: "./Figs/2.Affectron/p022_emo_distress_sentences_1.png",
+                ablation_easm: "./Figs/3.EDNM/p022_emo_distress_sentences_1.png",
+                ablation_easm_ear: "./Figs/4.EDNM_EAR/p022_emo_distress_sentences_1.png",
+                ablation_easm_ear_edm: "./Figs/5.EDNM_EAR_NSM/p022_emo_distress_sentences_1.png",
               },
             },
             {
-              id: "p023_emo_cuteness_sentences_1",
-              note: "(No plot image shown in this section)",
-              paths: {
-                aug_ref:
-                  "./wavs/main/Augmented_Reference/p023_emo_cuteness_sentences_1.wav",
-                ref_in:
-                  "./wavs/main/Reference_Input/p023_emo_cuteness_sentences_1.wav",
-                voicecraft:
-                  "./wavs/main/VoiceCraft/p023_emo_cuteness_sentences_1.wav",
-                affectron:
-                  "./wavs/main/Affectron/p023_emo_cuteness_sentences_1.wav",
-                ablation_easm:
-                  "./wavs/main/Affectron_ablation_EASM/p023_emo_cuteness_sentences_1.wav",
-                ablation_easm_ear:
-                  "./wavs/main/Affectron_ablation_EASM_EAR/p023_emo_cuteness_sentences_1.wav",
-                ablation_easm_ear_edm:
-                  "./wavs/main/Affectron_ablation_EASM_EAR_EDM/p023_emo_cuteness_sentences_1.wav",
+              input_text:
+                "Oh my goodness, she's so cute. <em><strong>&lt congratulations &gt</strong></em>",
+              speaker: "p023 (Male Speaker)",
+              emotion: "Cuteness",
+              wav_paths: {
+                aug_ref: "./wavs/main/Augmented_Reference/p023_emo_cuteness_sentences_1.wav",
+                ref_in: "./wavs/main/Reference_Input/p023_emo_cuteness_sentences_1.wav",
+                voicecraft: "./wavs/main/VoiceCraft/p023_emo_cuteness_sentences_1.wav",
+                affectron: "./wavs/main/Affectron/p023_emo_cuteness_sentences_1.wav",
+                ablation_easm: "./wavs/main/Affectron_ablation_EASM/p023_emo_cuteness_sentences_1.wav",
+                ablation_easm_ear: "./wavs/main/Affectron_ablation_EASM_EAR/p023_emo_cuteness_sentences_1.wav",
+                ablation_easm_ear_edm: "./wavs/main/Affectron_ablation_EASM_EAR_EDM/p023_emo_cuteness_sentences_1.wav",
+              },
+              fig_paths: {
+                aug_ref: "./Figs/0.GT/p023_emo_cuteness_sentences_1.png",
+                voicecraft: "./Figs/1.VoiceCraft/p023_emo_cuteness_sentences_1.png",
+                affectron: "./Figs/2.Affectron/p023_emo_cuteness_sentences_1.png",
+                ablation_easm: "./Figs/3.EDNM/p023_emo_cuteness_sentences_1.png",
+                ablation_easm_ear: "./Figs/4.EDNM_EAR/p023_emo_cuteness_sentences_1.png",
+                ablation_easm_ear_edm: "./Figs/5.EDNM_EAR_NSM/p023_emo_cuteness_sentences_1.png",
               },
             },
           ];
 
           const seenDiv = document.getElementById("seen_cards");
           seenSamples.forEach((s) => {
-            seenDiv.insertAdjacentHTML("beforeend", createSynthesisCard(s));
+            seenDiv.insertAdjacentHTML("beforeend", createSynthesisCardV2(s));
           });
         </script>
       </div>
@@ -956,90 +1061,102 @@
         <script>
           const unseenSamples = [
             {
-              id: "p001_emo_anger_freeform_1",
-              note: "(No plot image shown in this section)",
-              paths: {
-                aug_ref:
-                  "./wavs/main/Augmented_Reference/p001_emo_anger_freeform_1.wav",
-                ref_in:
-                  "./wavs/main/Reference_Input/p001_emo_anger_freeform_1.wav",
-                voicecraft:
-                  "./wavs/main/VoiceCraft/p001_emo_anger_freeform_1.wav",
-                affectron:
-                  "./wavs/main/Affectron/p001_emo_anger_freeform_1.wav",
-                ablation_easm:
-                  "./wavs/main/Affectron_ablation_EASM/p001_emo_anger_freeform_1.wav",
-                ablation_easm_ear:
-                  "./wavs/main/Affectron_ablation_EASM_EAR/p001_emo_anger_freeform_1.wav",
-                ablation_easm_ear_edm:
-                  "./wavs/main/Affectron_ablation_EASM_EAR_EDM/p001_emo_anger_freeform_1.wav",
+              input_text:
+                "Like, there are potholes in the road, the drivers are like super close, and you just like make it more dangerous already. <em><strong>&lt congratulations &gt</strong></em>",
+              speaker: "p001 (Male Speaker)",
+              emotion: "Anger",
+              wav_paths: {
+                aug_ref: "./wavs/main/Augmented_Reference/p001_emo_anger_freeform_1.wav",
+                ref_in: "./wavs/main/Reference_Input/p001_emo_anger_freeform_1.wav",
+                voicecraft: "./wavs/main/VoiceCraft/p001_emo_anger_freeform_1.wav",
+                affectron: "./wavs/main/Affectron/p001_emo_anger_freeform_1.wav",
+                ablation_easm: "./wavs/main/Affectron_ablation_EASM/p001_emo_anger_freeform_1.wav",
+                ablation_easm_ear: "./wavs/main/Affectron_ablation_EASM_EAR/p001_emo_anger_freeform_1.wav",
+                ablation_easm_ear_edm: "./wavs/main/Affectron_ablation_EASM_EAR_EDM/p001_emo_anger_freeform_1.wav",
+              },
+              fig_paths: {
+                aug_ref: "./Figs/0.GT/p001_emo_anger_freeform_1.png",
+                voicecraft: "./Figs/1.VoiceCraft/p001_emo_anger_freeform_1.png",
+                affectron: "./Figs/2.Affectron/p001_emo_anger_freeform_1.png",
+                ablation_easm: "./Figs/3.EDNM/p001_emo_anger_freeform_1.png",
+                ablation_easm_ear: "./Figs/4.EDNM_EAR/p001_emo_anger_freeform_1.png",
+                ablation_easm_ear_edm: "./Figs/5.EDNM_EAR_NSM/p001_emo_anger_freeform_1.png",
               },
             },
             {
-              id: "p001_emo_contentment_sentences_1",
-              note: "(No plot image shown in this section)",
-              paths: {
-                aug_ref:
-                  "./wavs/main/Augmented_Reference/p001_emo_contentment_sentences_1.wav",
-                ref_in:
-                  "./wavs/main/Reference_Input/p001_emo_contentment_sentences_1.wav",
-                voicecraft:
-                  "./wavs/main/VoiceCraft/p001_emo_contentment_sentences_1.wav",
-                affectron:
-                  "./wavs/main/Affectron/p001_emo_contentment_sentences_1.wav",
-                ablation_easm:
-                  "./wavs/main/Affectron_ablation_EASM/p001_emo_contentment_sentences_1.wav",
-                ablation_easm_ear:
-                  "./wavs/main/Affectron_ablation_EASM_EAR/p001_emo_contentment_sentences_1.wav",
-                ablation_easm_ear_edm:
-                  "./wavs/main/Affectron_ablation_EASM_EAR_EDM/p001_emo_contentment_sentences_1.wav",
+              input_text:
+                "Everything is working out just fine. <em><strong>&lt filler &gt</strong></em>",
+              speaker: "p001 (Male Speaker)",
+              emotion: "Contentment",
+              wav_paths: {
+                aug_ref: "./wavs/main/Augmented_Reference/p001_emo_contentment_sentences_1.wav",
+                ref_in: "./wavs/main/Reference_Input/p001_emo_contentment_sentences_1.wav",
+                voicecraft: "./wavs/main/VoiceCraft/p001_emo_contentment_sentences_1.wav",
+                affectron: "./wavs/main/Affectron/p001_emo_contentment_sentences_1.wav",
+                ablation_easm: "./wavs/main/Affectron_ablation_EASM/p001_emo_contentment_sentences_1.wav",
+                ablation_easm_ear: "./wavs/main/Affectron_ablation_EASM_EAR/p001_emo_contentment_sentences_1.wav",
+                ablation_easm_ear_edm: "./wavs/main/Affectron_ablation_EASM_EAR_EDM/p001_emo_contentment_sentences_1.wav",
+              },
+              fig_paths: {
+                aug_ref: "./Figs/0.GT/p001_emo_contentment_sentences_1.png",
+                voicecraft: "./Figs/1.VoiceCraft/p001_emo_contentment_sentences_1.png",
+                affectron: "./Figs/2.Affectron/p001_emo_contentment_sentences_1.png",
+                ablation_easm: "./Figs/3.EDNM/p001_emo_contentment_sentences_1.png",
+                ablation_easm_ear: "./Figs/4.EDNM_EAR/p001_emo_contentment_sentences_1.png",
+                ablation_easm_ear_edm: "./Figs/5.EDNM_EAR_NSM/p001_emo_contentment_sentences_1.png",
               },
             },
             {
-              id: "p002_emo_amazement_freeform_1",
-              note: "(No plot image shown in this section)",
-              paths: {
-                aug_ref:
-                  "./wavs/main/Augmented_Reference/p002_emo_amazement_freeform_1.wav",
-                ref_in:
-                  "./wavs/main/Reference_Input/p002_emo_amazement_freeform_1.wav",
-                voicecraft:
-                  "./wavs/main/VoiceCraft/p002_emo_amazement_freeform_1.wav",
-                affectron:
-                  "./wavs/main/Affectron/p002_emo_amazement_freeform_1.wav",
-                ablation_easm:
-                  "./wavs/main/Affectron_ablation_EASM/p002_emo_amazement_freeform_1.wav",
-                ablation_easm_ear:
-                  "./wavs/main/Affectron_ablation_EASM_EAR/p002_emo_amazement_freeform_1.wav",
-                ablation_easm_ear_edm:
-                  "./wavs/main/Affectron_ablation_EASM_EAR_EDM/p002_emo_amazement_freeform_1.wav",
+              input_text:
+                "I can't believe I did that myself. <em><strong>&lt greetings &gt</strong></em>",
+              speaker: "p002 (Female Speaker)",
+              emotion: "Amazement",
+              wav_paths: {
+                aug_ref: "./wavs/main/Augmented_Reference/p002_emo_amazement_freeform_1.wav",
+                ref_in: "./wavs/main/Reference_Input/p002_emo_amazement_freeform_1.wav",
+                voicecraft: "./wavs/main/VoiceCraft/p002_emo_amazement_freeform_1.wav",
+                affectron: "./wavs/main/Affectron/p002_emo_amazement_freeform_1.wav",
+                ablation_easm: "./wavs/main/Affectron_ablation_EASM/p002_emo_amazement_freeform_1.wav",
+                ablation_easm_ear: "./wavs/main/Affectron_ablation_EASM_EAR/p002_emo_amazement_freeform_1.wav",
+                ablation_easm_ear_edm: "./wavs/main/Affectron_ablation_EASM_EAR_EDM/p002_emo_amazement_freeform_1.wav",
+              },
+              fig_paths: {
+                aug_ref: "./Figs/0.GT/p002_emo_amazement_freeform_1.png",
+                voicecraft: "./Figs/1.VoiceCraft/p002_emo_amazement_freeform_1.png",
+                affectron: "./Figs/2.Affectron/p002_emo_amazement_freeform_1.png",
+                ablation_easm: "./Figs/3.EDNM/p002_emo_amazement_freeform_1.png",
+                ablation_easm_ear: "./Figs/4.EDNM_EAR/p002_emo_amazement_freeform_1.png",
+                ablation_easm_ear_edm: "./Figs/5.EDNM_EAR_NSM/p002_emo_amazement_freeform_1.png",
               },
             },
             {
-              id: "p002_emo_cuteness_sentences_0",
-              note: "(No plot image shown in this section)",
-              paths: {
-                aug_ref:
-                  "./wavs/main/Augmented_Reference/p002_emo_cuteness_sentences_0.wav",
-                ref_in:
-                  "./wavs/main/Reference_Input/p002_emo_cuteness_sentences_0.wav",
-                voicecraft:
-                  "./wavs/main/VoiceCraft/p002_emo_cuteness_sentences_0.wav",
-                affectron:
-                  "./wavs/main/Affectron/p002_emo_cuteness_sentences_0.wav",
-                ablation_easm:
-                  "./wavs/main/Affectron_ablation_EASM/p002_emo_cuteness_sentences_0.wav",
-                ablation_easm_ear:
-                  "./wavs/main/Affectron_ablation_EASM_EAR/p002_emo_cuteness_sentences_0.wav",
-                ablation_easm_ear_edm:
-                  "./wavs/main/Affectron_ablation_EASM_EAR_EDM/p002_emo_cuteness_sentences_0.wav",
+              input_text:
+                "Look at that cute little kitty cat. <em><strong>&lt congratulations &gt</strong></em>",
+              speaker: "p002 (Female Speaker)",
+              emotion: "Cuteness",
+              wav_paths: {
+                aug_ref: "./wavs/main/Augmented_Reference/p002_emo_cuteness_sentences_0.wav",
+                ref_in: "./wavs/main/Reference_Input/p002_emo_cuteness_sentences_0.wav",
+                voicecraft: "./wavs/main/VoiceCraft/p002_emo_cuteness_sentences_0.wav",
+                affectron: "./wavs/main/Affectron/p002_emo_cuteness_sentences_0.wav",
+                ablation_easm: "./wavs/main/Affectron_ablation_EASM/p002_emo_cuteness_sentences_0.wav",
+                ablation_easm_ear: "./wavs/main/Affectron_ablation_EASM_EAR/p002_emo_cuteness_sentences_0.wav",
+                ablation_easm_ear_edm: "./wavs/main/Affectron_ablation_EASM_EAR_EDM/p002_emo_cuteness_sentences_0.wav",
+              },
+              fig_paths: {
+                aug_ref: "./Figs/0.GT/p002_emo_cuteness_sentences_0.png",
+                voicecraft: "./Figs/1.VoiceCraft/p002_emo_cuteness_sentences_0.png",
+                affectron: "./Figs/2.Affectron/p002_emo_cuteness_sentences_0.png",
+                ablation_easm: "./Figs/3.EDNM/p002_emo_cuteness_sentences_0.png",
+                ablation_easm_ear: "./Figs/4.EDNM_EAR/p002_emo_cuteness_sentences_0.png",
+                ablation_easm_ear_edm: "./Figs/5.EDNM_EAR_NSM/p002_emo_cuteness_sentences_0.png",
               },
             },
           ];
 
           const unseenDiv = document.getElementById("unseen_cards");
           unseenSamples.forEach((s) => {
-            unseenDiv.insertAdjacentHTML("beforeend", createSynthesisCard(s));
+            unseenDiv.insertAdjacentHTML("beforeend", createSynthesisCardV2(s));
           });
         </script>
       </div>
@@ -1059,5 +1176,4 @@
     <script src="js/scripts.js"></script>
   </body>
 </html>
-
 
