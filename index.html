@@ -148,6 +148,26 @@
         margin: 8px 0 6px 0;
       }
 
+    .section-note {
+      background: rgba(255,255,255,0.12);
+      border: 1px solid rgba(255,255,255,0.22);
+      border-radius: 14px;
+      padding: 12px 14px;
+      margin: 0 0 14px 0;
+      text-align: left;          /* ✅ 왼쪽 정렬 */
+      font-size: 0.95rem;        /* ✅ 기존 note랑 비슷한 크기 */
+      line-height: 1.45;
+    }
+
+    .section-note .ref-citation {
+      color: rgba(255,255,255,0.85);
+      font-weight: 500;
+    }
+
+    .section-note .muted {
+      opacity: 0.95;
+    }
+
     </style>
 
     <meta
@@ -222,9 +242,7 @@
       }
 
       function imgBlock(src) {
-        const p = normalizeMediaPath(src); // png도 normalize가 ext 없으면 wav 붙일 수 있어서 아래에서 따로 처리
-        // 위 normalizeMediaPath는 wav/mp3/png를 지원하지만, ext 없으면 .wav를 붙임.
-        // fig_paths는 항상 .png가 있으니 그대로 써도 안전.
+        const p = normalizeMediaPath(src);
         return '<img class="fig-img" src="' + encodeURI(src) + '" alt="figure" />';
       }
 
@@ -248,7 +266,7 @@
               '<div class="mt-1"><span class="meta-k">Emotion:</span> <i>' + s.emotion + '</i></div>' +
             "</div>" +
             '<div>' +
-              '<div class="audio-label text-center">Reference Input</div>' +
+              '<div class="audio-label text-center">*Reference Input</div>' +
               audioPlayer(s.wav_paths.ref_in) +
             "</div>" +
           "</div>";
@@ -268,20 +286,6 @@
         rows += modelCell("(e) -EDNM-EAR", s.fig_paths.ablation_easm_ear, s.wav_paths.ablation_easm_ear);
         rows += modelCell("(f) -EDNM-EAR-NSM", s.fig_paths.ablation_easm_ear_edm, s.wav_paths.ablation_easm_ear_edm);
         rows += "</div>";
-
-        // 기존 citation/설명도 유지하고 싶으면 여기 붙이면 됨 (선택)
-        rows +=
-          '<div class="ablation-note">' +
-            '<em>' +
-              '*EDNM: emotion-driven top-K NV matching<br>' +
-              '*EAR: emotion-aware top-K routing<br>' +
-              '*NSM: NV structural masking<br>' +
-              '<span class="ref-citation">' +
-                'P. Peng et al., "VoiceCraft: Zero-Shot Speech Editing and Text-to-Speech in the Wild." ' +
-                'In Proceedings of the 62nd Annual Meeting of the Association for Computational Linguistics, 2024.' +
-              '</span>' +
-            '</em>' +
-          '</div>';
 
         return makeCard(meta, rows);
       }
@@ -372,7 +376,7 @@
           s.text +
           "</i></div>";
 
-        const rows = '<div class="row">' + audioBlock("Augmented Reference", s.path, true) + "</div>";
+        const rows = '<div class="row">' + audioBlock("Augmented GT", s.path, true) + "</div>";
         return makeCard(meta, rows);
       }
 
@@ -392,7 +396,7 @@
 
         // Row 1 (2 items)
         rows += '<div class="row">';
-        rows += audioBlock("Augmented Reference", s.paths.aug_ref, true);
+        rows += audioBlock("Augmented GT", s.paths.aug_ref, true);
         rows += audioBlock("Reference Input", s.paths.ref_in);
         rows += "</div>";
 
@@ -424,7 +428,7 @@
               '*EDNM: emotion-driven top-K NV matching<br>' +
               '*EAR: emotion-aware top-K routing<br>' + 
               '*NSM: NV structural masking<br>' + 
-              '*Augmented reference applies our NV augmentation to the ground truth<br>' + 
+              '*Augmented GT applies our NV augmentation to the ground truth<br>' + 
               '<span class="ref-citation">' +
                 'P. Peng et al., "VoiceCraft: Zero-Shot Speech Editing and Text-to-Speech in the Wild." ' +
                 'In Proceedings of the 62nd Annual Meeting of the Association for Computational Linguistics, 2024.' +
@@ -459,16 +463,8 @@
             audioPlayer(m.path) +
           "</div>";
       });
-
+      
       rows += "</div>";
-
-      rows +=
-        '<div class="ablation-note">' +
-          '<em>' +
-            '[1] H. Wang et al., "CapSpeech: Enabling Downstream Applications in Style-Captioned Text-to-Speech," arXiv preprint arXiv:2506.02863, 2025.' +
-          '</em>' +
-        '</div>';
-
       return makeCard(meta, rows);
     }
 
@@ -602,7 +598,7 @@
         </div>
         <p class="lead note">
           Explore how Affectron builds NV-augmented training data: 
-          Split Verbal/NV Recordings, Retrieve Top-3 Emotion-Aligned NV Candidates, and Create Final Augmented References.
+          Split Verbal/NV Recordings, Retrieve Top-3 Emotion-Aligned NV Candidates, and Create Final Augmented GT.
         </p>
         <!-- Icon Divider-->
         <div class="divider-custom divider-light">
@@ -826,7 +822,7 @@
 
         <!-- 3) Augmented reference examples -->
         <h3 class="mt-5 mb-3">
-          <span class="badge bg-light text-dark ms-2">3️⃣ Final Augmented Reference Examples</span>
+          <span class="badge bg-light text-dark ms-2">3️⃣ Final Augmented GT Examples</span>
         </h3>
         <div id="preproc_augref"></div>
 
@@ -839,11 +835,25 @@
                 "./wavs/Preprocessing/Final/adoration_2-3_with_vegetative_throat_3.wav",
             },
             {
+              emotion: "Guilt",
+              text:
+                "I really didn't mean to hurt you. <em><strong>&lt crying &gt</strong></em>",
+              path:
+                "./wavs/Preprocessing/Final/p059_emo_guilt_sentences_1.wav",
+            },
+            {
               emotion: "Confusion",
               text:
                 "Huh? What is going on over here? <em><strong>&lt filler &gt</strong></em> What is this? Where are we going?",
               path:
                 "./wavs/Preprocessing/Final/confusion_0-1_with_interjection_filler_1.wav",
+            },
+            {
+              emotion: "Cuteness",
+              text:
+                "<em><strong>&lt laughter &gt</strong></em> Oh my goodness, she's so cute.",
+              path:
+                "./wavs/Preprocessing/Final/p048_emo_cuteness_sentences_1.wav",
             },
             {
               emotion: "Fear",
@@ -853,11 +863,25 @@
                 "./wavs/Preprocessing/Final/fear_0-1_with_interjection_congratulations_0.wav",
             },
             {
+              emotion: "Interest",
+              text:
+                "Oh, what's that over there? <em><strong>&lt screaming &gt</strong></em>",
+              path:
+                "./wavs/Preprocessing/Final/p067_emo_interest_sentences_1.wav",
+            },
+            {
               emotion: "Sadness",
               text:
                 "I am so upset by the state of the world. I hope it gets better soon. <em><strong>&lt throat &gt</strong></em> I really miss her. Life isn't the same without her.",
               path:
                 "./wavs/Preprocessing/Final/sadness_0-1_with_vegetative_throat_4.wav",
+            },
+            {
+              emotion: "Relief",
+              text:
+                " I am so relieved that <em><strong>&lt eating &gt</strong></em> it's over with.",
+              path:
+                "./wavs/Preprocessing/Final/p009_emo_relief_sentences_1.wav",
             },
           ];
 
@@ -882,6 +906,12 @@
           enabling direct preference comparison on the same ground-truth utterance.
         </p>
         <div class="divider-custom divider-light"><div class="divider-custom"></div></div>
+      <div class="section-note">
+        <div class="muted">
+          [1] H. Wang et al., "CapSpeech: Enabling Downstream Applications in Style-Captioned Text-to-Speech,"
+          <span class="ref-citation">arXiv preprint arXiv:2506.02863, 2025.</span>
+        </div>
+      </div>
 
         <div id="abtest_cards"></div>
 
@@ -889,8 +919,8 @@
           const AB_MODELS = [
             { name: "Affectron (Proposed)", dir: "./wavs/ABtest/Affectron" },
             { name: "Random Type [1]", dir: "./wavs/ABtest/Random_type" },
-            { name: "Random Position [1]", dir: "./wavs/ABtest/Random_position" },
-            { name: "Random Position & Type [1]", dir: "./wavs/ABtest/Random_position_type" },
+            { name: "Random Location [1]", dir: "./wavs/ABtest/Random_position" },
+            { name: "Random Location & Type [1]", dir: "./wavs/ABtest/Random_position_type" },
           ];
 
           const AB_SAMPLES = [
@@ -900,14 +930,39 @@
               text: "I can't believe he said that. He's such a jerk.",
             },
             {
-              wav: "p005_emo_adoration_sentences_1.wav",
-              emotion: "Adoration",
-              text: "I had the best time with you.",
-            },
-            {
               wav: "p005_emo_relief_sentences_1.wav",
               emotion: "Relief",
               text: "That was so stressful.",
+            },
+            {
+              wav: "p004_emo_amusement_sentences_1.wav",
+              emotion: "Amusement",
+              text: "I like that stand-up comic. I found her pretty funny.",
+            },
+            {
+              wav: "p005_emo_extasy_sentences_1.wav",
+              emotion: "Extasy",
+              text: "I can't believe I got to see that.",
+            },
+            {
+              wav: "p006_emo_anger_sentences_1.wav",
+              emotion: "Anger",
+              text: "There's a stop sign there and parents are just letting their kids run around.",
+            },
+            {
+              wav: "p006_emo_contentment_sentences_1.wav",
+              emotion: "Contentment",
+              text: "Everything is working out just fine.",
+            },
+            {
+              wav: "p003_emo_disappointment_sentences_1.wav",
+              emotion: "Disappointment",
+              text: "I had such higher expectations for you.",
+            },
+            {
+              wav: "p003_emo_embarassment_sentences_1.wav",
+              emotion: "Embarassment",
+              text: "I'm so embarrassed. I hope no one saw that. I'd be so mortified if they did.",
             },
           ];
 
@@ -940,6 +995,19 @@
         </div>
         <div class="divider-custom divider-light"><div class="divider-custom"></div></div>
 
+        <div class="section-note">
+          <div class="muted">
+            *EDNM: emotion-driven top-K NV matching<br>
+            *EAR: emotion-aware top-K routing<br>
+            *NSM: NV structural masking<br>
+            *Augmented GT applies our NV augmentation to the ground truth<br>
+            <span class="ref-citation">
+              P. Peng et al., "VoiceCraft: Zero-Shot Speech Editing and Text-to-Speech in the Wild."
+              In Proceedings of the 62nd Annual Meeting of the Association for Computational Linguistics, 2024.
+            </span>
+          </div>
+        </div>
+
         <div id="seen_cards"></div>
 
         <script>
@@ -969,6 +1037,29 @@
             },
             {
               input_text:
+                "I can't believe he said that. He is <em><strong>&lt anger &gt</strong></em> such a jerk.",
+              speaker: "p008 (Male Speaker)",
+              emotion: "Anger",
+              wav_paths: {
+                aug_ref: "./wavs/main/Augmented_Reference/p008_emo_anger_sentences_1.wav",
+                ref_in: "./wavs/main/Reference_Input/p008_emo_anger_sentences_1.wav",
+                voicecraft: "./wavs/main/VoiceCraft/p008_emo_anger_sentences_1.wav",
+                affectron: "./wavs/main/Affectron/p008_emo_anger_sentences_1.wav",
+                ablation_easm: "./wavs/main/Affectron_ablation_EASM/p008_emo_anger_sentences_1.wav",
+                ablation_easm_ear: "./wavs/main/Affectron_ablation_EASM_EAR/p008_emo_anger_sentences_1.wav",
+                ablation_easm_ear_edm: "./wavs/main/Affectron_ablation_EASM_EAR_EDM/p008_emo_anger_sentences_1.wav",
+              },
+              fig_paths: {
+                aug_ref: "./Figs/0.GT/p008_emo_anger_sentences_1.png",
+                voicecraft: "./Figs/1.VoiceCraft/p008_emo_anger_sentences_1.png",
+                affectron: "./Figs/2.Affectron/p008_emo_anger_sentences_1.png",
+                ablation_easm: "./Figs/3.EDNM/p008_emo_anger_sentences_1.png",
+                ablation_easm_ear: "./Figs/4.EDNM_EAR/p008_emo_anger_sentences_1.png",
+                ablation_easm_ear_edm: "./Figs/5.EDNM_EAR_NSM/p008_emo_anger_sentences_1.png",
+              },
+            },
+            {
+              input_text:
                 "My foot hurts so badly right now. <em><strong>&lt filler &gt</strong></em>",
               speaker: "p018 (Female Speaker)",
               emotion: "Pain",
@@ -992,6 +1083,29 @@
             },
             {
               input_text:
+                "I want <em><strong>&lt coughing &gt</strong></em> that car so badly.",
+              speaker: "p026 (Female Speaker)",
+              emotion: "Desire",
+              wav_paths: {
+                aug_ref: "./wavs/main/Augmented_Reference/p026_emo_desire_sentences_1.wav",
+                ref_in: "./wavs/main/Reference_Input/p026_emo_desire_sentences_1.wav",
+                voicecraft: "./wavs/main/VoiceCraft/p026_emo_desire_sentences_1.wav",
+                affectron: "./wavs/main/Affectron/p026_emo_desire_sentences_1.wav",
+                ablation_easm: "./wavs/main/Affectron_ablation_EASM/p026_emo_desire_sentences_1.wav",
+                ablation_easm_ear: "./wavs/main/Affectron_ablation_EASM_EAR/p026_emo_desire_sentences_1.wav",
+                ablation_easm_ear_edm: "./wavs/main/Affectron_ablation_EASM_EAR_EDM/p026_emo_desire_sentences_1.wav",
+              },
+              fig_paths: {
+                aug_ref: "./Figs/0.GT/p026_emo_desire_sentences_1.png",
+                voicecraft: "./Figs/1.VoiceCraft/p026_emo_desire_sentences_1.png",
+                affectron: "./Figs/2.Affectron/p026_emo_desire_sentences_1.png",
+                ablation_easm: "./Figs/3.EDNM/p026_emo_desire_sentences_1.png",
+                ablation_easm_ear: "./Figs/4.EDNM_EAR/p026_emo_desire_sentences_1.png",
+                ablation_easm_ear_edm: "./Figs/5.EDNM_EAR_NSM/p026_emo_desire_sentences_1.png",
+              },
+            },
+            {
+              input_text:
                 "This is all too stressful to handle right now. <em><strong>&lt filler &gt</strong></em>",
               speaker: "p022 (Male Speaker)",
               emotion: "Distress",
@@ -1011,6 +1125,29 @@
                 ablation_easm: "./Figs/3.EDNM/p022_emo_distress_sentences_1.png",
                 ablation_easm_ear: "./Figs/4.EDNM_EAR/p022_emo_distress_sentences_1.png",
                 ablation_easm_ear_edm: "./Figs/5.EDNM_EAR_NSM/p022_emo_distress_sentences_1.png",
+              },
+            },
+            {
+              input_text:
+                "I want that car <em><strong>&lt laughter &gt</strong></em> so badly.",
+              speaker: "p016 (Male Speaker)",
+              emotion: "Desire",
+              wav_paths: {
+                aug_ref: "./wavs/main/Augmented_Reference/p016_emo_desire_sentences_1.wav",
+                ref_in: "./wavs/main/Reference_Input/p016_emo_desire_sentences_1.wav",
+                voicecraft: "./wavs/main/VoiceCraft/p016_emo_desire_sentences_1.wav",
+                affectron: "./wavs/main/Affectron/p016_emo_desire_sentences_1.wav",
+                ablation_easm: "./wavs/main/Affectron_ablation_EASM/p016_emo_desire_sentences_1.wav",
+                ablation_easm_ear: "./wavs/main/Affectron_ablation_EASM_EAR/p016_emo_desire_sentences_1.wav",
+                ablation_easm_ear_edm: "./wavs/main/Affectron_ablation_EASM_EAR_EDM/p016_emo_desire_sentences_1.wav",
+              },
+              fig_paths: {
+                aug_ref: "./Figs/0.GT/p016_emo_desire_sentences_1.png",
+                voicecraft: "./Figs/1.VoiceCraft/p016_emo_desire_sentences_1.png",
+                affectron: "./Figs/2.Affectron/p016_emo_desire_sentences_1.png",
+                ablation_easm: "./Figs/3.EDNM/p016_emo_desire_sentences_1.png",
+                ablation_easm_ear: "./Figs/4.EDNM_EAR/p016_emo_desire_sentences_1.png",
+                ablation_easm_ear_edm: "./Figs/5.EDNM_EAR_NSM/p016_emo_desire_sentences_1.png",
               },
             },
             {
@@ -1055,7 +1192,18 @@
           </h2>
         </div>
         <div class="divider-custom divider-light"><div class="divider-custom"></div></div>
-
+        <div class="section-note">
+          <div class="muted">
+            *EDNM: emotion-driven top-K NV matching<br>
+            *EAR: emotion-aware top-K routing<br>
+            *NSM: NV structural masking<br>
+            *Augmented GT applies our NV augmentation to the ground truth<br>
+            <span class="ref-citation">
+              P. Peng et al., "VoiceCraft: Zero-Shot Speech Editing and Text-to-Speech in the Wild."
+              In Proceedings of the 62nd Annual Meeting of the Association for Computational Linguistics, 2024.
+            </span>
+          </div>
+        </div>
         <div id="unseen_cards"></div>
 
         <script>
@@ -1152,6 +1300,75 @@
                 ablation_easm_ear_edm: "./Figs/5.EDNM_EAR_NSM/p002_emo_cuteness_sentences_0.png",
               },
             },
+            {
+              input_text:
+                "Letting thoughts flow and not worrying about anything and just, you know, <em><strong>&lt throat &gt</strong></em>",
+              speaker: "p001 (Male Speaker)",
+              emotion: "Contentment",
+              wav_paths: {
+                aug_ref: "./wavs/main/Augmented_Reference/p001_emo_contentment_freeform_1.wav",
+                ref_in: "./wavs/main/Reference_Input/p001_emo_contentment_freeform_1.wav",
+                voicecraft: "./wavs/main/VoiceCraft/p001_emo_contentment_freeform_1.wav",
+                affectron: "./wavs/main/Affectron/p001_emo_contentment_freeform_1.wav",
+                ablation_easm: "./wavs/main/Affectron_ablation_EASM/p001_emo_contentment_freeform_1.wav",
+                ablation_easm_ear: "./wavs/main/Affectron_ablation_EASM_EAR/p001_emo_contentment_freeform_1.wav",
+                ablation_easm_ear_edm: "./wavs/main/Affectron_ablation_EASM_EAR_EDM/p001_emo_contentment_freeform_1.wav",
+              },
+              fig_paths: {
+                aug_ref: "./Figs/0.GT/p001_emo_contentment_freeform_1.png",
+                voicecraft: "./Figs/1.VoiceCraft/p001_emo_contentment_freeform_1.png",
+                affectron: "./Figs/2.Affectron/p001_emo_contentment_freeform_1.png",
+                ablation_easm: "./Figs/3.EDNM/p001_emo_contentment_freeform_1.png",
+                ablation_easm_ear: "./Figs/4.EDNM_EAR/p001_emo_contentment_freeform_1.png",
+                ablation_easm_ear_edm: "./Figs/5.EDNM_EAR_NSM/p001_emo_contentment_freeform_1.png",
+              },
+            },
+            {
+              input_text:
+                "Come all this way, played the game, and you won. <em><strong>&lt laughter &gt</strong></em>",
+              speaker: "p002 (Female Speaker)",
+              emotion: "Pride",
+              wav_paths: {
+                aug_ref: "./wavs/main/Augmented_Reference/p002_emo_pride_freeform_1.wav",
+                ref_in: "./wavs/main/Reference_Input/p002_emo_pride_freeform_1.wav",
+                voicecraft: "./wavs/main/VoiceCraft/p002_emo_pride_freeform_1.wav",
+                affectron: "./wavs/main/Affectron/p002_emo_pride_freeform_1.wav",
+                ablation_easm: "./wavs/main/Affectron_ablation_EASM/p002_emo_pride_freeform_1.wav",
+                ablation_easm_ear: "./wavs/main/Affectron_ablation_EASM_EAR/p002_emo_pride_freeform_1.wav",
+                ablation_easm_ear_edm: "./wavs/main/Affectron_ablation_EASM_EAR_EDM/p002_emo_pride_freeform_1.wav",
+              },
+              fig_paths: {
+                aug_ref: "./Figs/0.GT/p002_emo_pride_freeform_1.png",
+                voicecraft: "./Figs/1.VoiceCraft/p002_emo_pride_freeform_1.png",
+                affectron: "./Figs/2.Affectron/p002_emo_pride_freeform_1.png",
+                ablation_easm: "./Figs/3.EDNM/p002_emo_pride_freeform_1.png",
+                ablation_easm_ear: "./Figs/4.EDNM_EAR/p002_emo_pride_freeform_1.png",
+                ablation_easm_ear_edm: "./Figs/5.EDNM_EAR_NSM/p002_emo_pride_freeform_1.png",
+              },
+            },
+            {
+              input_text:
+                "Oh, I'm so glad <em><strong>&lt anger &gt</strong></em> I found you.",
+              speaker: "p002 (Female Speaker)",
+              emotion: "Adoration",
+              wav_paths: {
+                aug_ref: "./wavs/main/Augmented_Reference/p002_emo_adoration_freeform_0.wav",
+                ref_in: "./wavs/main/Reference_Input/p002_emo_adoration_freeform_0.wav",
+                voicecraft: "./wavs/main/VoiceCraft/p002_emo_adoration_freeform_0.wav",
+                affectron: "./wavs/main/Affectron/p002_emo_adoration_freeform_0.wav",
+                ablation_easm: "./wavs/main/Affectron_ablation_EASM/p002_emo_adoration_freeform_0.wav",
+                ablation_easm_ear: "./wavs/main/Affectron_ablation_EASM_EAR/p002_emo_adoration_freeform_0.wav",
+                ablation_easm_ear_edm: "./wavs/main/Affectron_ablation_EASM_EAR_EDM/p002_emo_adoration_freeform_0.wav",
+              },
+              fig_paths: {
+                aug_ref: "./Figs/0.GT/p002_emo_adoration_freeform_0.png",
+                voicecraft: "./Figs/1.VoiceCraft/p002_emo_adoration_freeform_0.png",
+                affectron: "./Figs/2.Affectron/p002_emo_adoration_freeform_0.png",
+                ablation_easm: "./Figs/3.EDNM/p002_emo_adoration_freeform_0.png",
+                ablation_easm_ear: "./Figs/4.EDNM_EAR/p002_emo_adoration_freeform_0.png",
+                ablation_easm_ear_edm: "./Figs/5.EDNM_EAR_NSM/p002_emo_adoration_freeform_0.png",
+              },
+            },
           ];
 
           const unseenDiv = document.getElementById("unseen_cards");
@@ -1176,4 +1393,3 @@
     <script src="js/scripts.js"></script>
   </body>
 </html>
-
