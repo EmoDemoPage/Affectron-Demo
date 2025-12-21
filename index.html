@@ -533,7 +533,7 @@
     <header class="masthead bg-white" id="page-top">
       <div class="container d-flex align-items-center flex-column">
         <h1 class="masthead-heading mb-0">
-          Affectron: Integrating Affectively Aligned Nonverbal Vocalizations into Emotional Speech Synthesis
+          Affectron: Emotional Speech Synthesis with Affective and Contextually Aligned Nonverbal Vocalizations
         </h1>
 
         <p class="pre-wrap masthead-subheading font-weight-light mb-0 font-italic">
@@ -542,19 +542,19 @@
 
         <div class="text-center">
           <br />
-          <img width="90%" src="./main.jpg" />
+          <video
+            width="100%"
+            controls
+            preload="metadata"
+            playsinline
+          >
+            <source src="./Demo_video_test3.mp4" type="video/mp4" />
+          </video>
           <br />
-          <em>Overall framework of Affectron.</em> 
+          <em>Demo Video</em>
           <br />
         </div>
-
-        <!-- ✅ GitHub / Source Code link buttons -->
-        <div class="header-links">
-          <a class="header-link-btn" href="https://github.com/YOUR_REPO" target="_blank" rel="noopener">
-            <i class="fab fa-github"></i>
-            <span>Source Code</span>
-          </a>
-        </div>
+    
       </div>
     </header>
 
@@ -578,6 +578,20 @@
             <p class="legend lead">
               Nonverbal vocalizations (NVs), such as laughter and sighs, are central to affective signaling in emotional synthesis systems. However, NV data remain limited, and existing systems often rely on large proprietary datasets or NV detectors. Consequently, many emotional synthesis models fail to learn sufficient and properly labeled NVs, which ultimately degrades usability and immersion. To address these limitations, we propose Affectron as a framework for affective and contextually aligned NV generation. Unlike prior approaches that rely on large proprietary corpora or NV detectors, we intentionally build on a small-scale open decoupled NV corpus. To compensate for its limited coverage, we introduce an NV-augmented training process to expand the distributions of NV types and timings. Furthermore, built on a pre-trained speech backbone, we incorporate NV structural masking to achieve diverse and natural NV synthesis. In evaluations, Affectron produces more expressive and diverse NVs than the baseline system while preserving the naturalness of the verbal stream.
             </p>
+
+            <div class="text-center">
+              <img width="90%" src="./main.jpg" alt="Overall framework of Affectron" />
+              <br />
+              <em>Overall framework of Affectron.</em>
+            </div>
+
+            <!-- ✅ GitHub / Source Code link buttons -->
+            <div class="header-links">
+              <a class="header-link-btn" href="https://github.com/EmoDemoPage/Affectron" target="_blank" rel="noopener">
+                <i class="fab fa-github"></i>
+                <span>Source Code</span>
+              </a>
+            </div>
             <br />
             <br />
           </div>
