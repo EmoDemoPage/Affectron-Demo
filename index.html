@@ -190,6 +190,81 @@
     <link rel="stylesheet" href="css/body.css" />
 
     <script>
+      // =========================
+      // ✅ Lazy Audio Mount/Unmount
+      // =========================
+      const LAZY_AUDIO_ROOT_MARGIN = "300px"; // 화면 근처로 오면 미리 로드
+      let lazyAudioObserver = null;
+
+      function ensureLazyAudioObserver() {
+        if (lazyAudioObserver) return lazyAudioObserver;
+
+        lazyAudioObserver = new IntersectionObserver((entries) => {
+          for (const e of entries) {
+            const host = e.target;
+            const src = host.dataset.audioSrc;
+            if (!src) continue;
+
+            if (e.isIntersecting) {
+              mountAudioInto(host, src);
+            } else {
+              unmountAudioFrom(host);
+            }
+          }
+        }, { rootMargin: LAZY_AUDIO_ROOT_MARGIN });
+
+        return lazyAudioObserver;
+      }
+
+      function mountAudioInto(host, src) {
+        if (host.dataset.mounted === "1") return;
+
+        const p = normalizeMediaPath(src);
+        host.innerHTML =
+          `<audio controls preload="none">
+            <source src="${encodeURI(p)}" type="audio/wav">
+          </audio>`;
+
+        host.dataset.mounted = "1";
+      }
+
+      function unmountAudioFrom(host) {
+        if (host.dataset.mounted !== "1") return;
+
+        const a = host.querySelector("audio");
+        if (a) {
+          try { a.pause(); } catch (e) {}
+          // source 태그 제거 + 해제
+          a.removeAttribute("src");
+          const s = a.querySelector("source");
+          if (s) s.removeAttribute("src");
+          try { a.load(); } catch (e) {}
+        }
+
+        host.innerHTML = "";
+        host.dataset.mounted = "0";
+      }
+
+      // placeholder 생성 + observer 등록
+      function lazyAudioPlaceholder(src) {
+        const p = normalizeMediaPath(src);
+        const id = "lazy-audio-" + Math.random().toString(36).slice(2);
+
+        // data-audio-src만 넣어두고 실제 audio는 나중에 mount
+        // (초기 DOM/메모리/디코딩 비용 최소화)
+        const html = `<div id="${id}" class="lazy-audio" data-audio-src="${p}"></div>`;
+
+        // DOM에 삽입된 뒤 observe 해야하므로 microtask로 등록
+        queueMicrotask(() => {
+          const el = document.getElementById(id);
+          if (!el) return;
+          ensureLazyAudioObserver().observe(el);
+        });
+
+        return html;
+      }
+
+
       // ---- Path helpers ----
       function normalizeMediaPath(p) {
         // 1) trim
@@ -206,15 +281,9 @@
       }
 
       function audioPlayer(src) {
-        const p = normalizeMediaPath(src);
-        // encodeURI keeps slashes but encodes spaces etc.
-        return (
-          '<audio controls="controls" preload="none">' +
-          '<source src="' +
-          encodeURI(p) +
-          '" type="audio/wav" />' +
-          "</audio>"
-        );
+        // ✅ 기존 audio 태그를 즉시 만들지 않고,
+        // ✅ placeholder만 만들어서 화면에 보일 때 audio를 생성
+        return lazyAudioPlaceholder(src);
       }
 
       function audioBlock(label, src, strong = false, extraHtml = "") {
@@ -243,7 +312,7 @@
 
       function imgBlock(src) {
         const p = normalizeMediaPath(src);
-        return '<img class="fig-img" src="' + encodeURI(src) + '" alt="figure" />';
+        return '<img class="fig-img" src="' + encodeURI(p) + '" alt="figure" loading="lazy" decoding="async" fetchpriority="low" />';
       }
 
       function modelCell(title, figSrc, wavSrc) {
@@ -388,7 +457,7 @@
         // ✅ meta 맨 위에 이미지 추가
         const meta =
           '<div class="text-center">' +
-            '<img class="synth-plot" src="' + jpgPath + '" alt="' + s.id + ' plot" />' +
+            '<img class="synth-plot" src="' + jpgPath + '" alt="' + s.id + ' plot" loading="lazy" decoding="async" fetchpriority="low" />' +
           "</div>"
 
 
@@ -489,7 +558,6 @@
         </button>
         <div class="collapse navbar-collapse" id="navbarResponsive">
           <ul class="navbar-nav ml-auto">
-            </li>
             <li class="nav-item mx-0 mx-lg-1">
               <a
                 class="nav-link py-3 px-0 px-lg-3 rounded js-scroll-trigger"
@@ -538,19 +606,30 @@
           </a>
         </div>
 
-        <div class="text-center">
-          <br />
-          <video
-            width="100%"
-            controls
-            preload="metadata"
-            playsinline
+        <div class="text-center" style="max-width: 900px; margin: 24px auto 0 auto;">
+          <a
+            href="https://www.youtube.com/watch?v=NMOc4c5KIiA"
+            target="_blank"
+            rel="noopener noreferrer"
+            style="text-decoration: none;"
           >
-            <source src="./251222_Demo_video_HD.mp4" type="video/mp4" />
-          </video>
-          <br />
-          <em>Demo Video</em>
-          <br />
+            <img
+              src="./Demo_gif.gif"
+              alt="Affectron demo preview"
+              style="
+                width: 100%;
+                max-width: 900px;
+                border-radius: 16px;
+                box-shadow: 0 4px 12px rgba(0,0,0,0.15);
+                cursor: pointer;
+              "
+            />
+          </a>
+
+          <!-- 클릭 유도 캡션 -->
+          <div style="margin-top: 10px; font-size: 0.95rem;">
+            <strong>👆 Watch the full demo on YouTube</strong><br />
+          </div>
         </div>
     
       </div>
@@ -1273,7 +1352,7 @@
             },
             {
               input_text:
-                "Letting thoughts flow and not worrying about anything and just, you know, <em><strong>&lt throat &gt</strong></em>",
+                "Letting thoughts flow and not worrying about anything and just deal. <em><strong>&lt throat &gt</strong></em>",
               speaker: "p001 (Male Speaker)",
               emotion: "Contentment",
               wav_paths: {
@@ -1364,4 +1443,3 @@
     <script src="js/scripts.js"></script>
   </body>
 </html>
-
